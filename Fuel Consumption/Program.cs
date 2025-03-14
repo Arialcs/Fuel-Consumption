@@ -6,48 +6,52 @@ using System.Threading;
 
 class Client
 {
-    private const string ServerAddress = "10.144.104.146";
+    private const string ServerAddress = "127.0.0.1"; // Replace with actual server IP
     private const int ServerPort = 12345;
-    private const int DelayMilliseconds = 1000; // Delay in milliseconds (1 second)
-    private const string FilePath = @"C:\Users\Jai\Desktop\pro Part 2\Data Files\Telem_2023_3_12 14_56_40.txt"; // Path to the data file
+    private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
+
+    // Hardcoded Airplane ID and Data File Path
+    private const string AirplaneId = "Plane123"; // You can change this ID as needed
+    private const string FilePath = @"C:\Users\giris\Downloads\Data Files\Telem_2023_3_12 14_56_40.txt"; // Path to the data file
 
     static void Main()
     {
         try
         {
-            // Connect to the server
             TcpClient client = new TcpClient(ServerAddress, ServerPort);
             NetworkStream stream = client.GetStream();
             StreamWriter writer = new StreamWriter(stream, Encoding.ASCII) { AutoFlush = true };
 
-            // Check if the file exists
+            // Send airplane ID to server
+            writer.WriteLine(AirplaneId);
+            Console.WriteLine($"Sent Airplane ID: {AirplaneId}");
+
             if (!File.Exists(FilePath))
             {
-                Console.WriteLine($"File not found: {FilePath}");
+                Console.WriteLine($"Data file not found: {FilePath}");
+                client.Close();
                 return;
             }
 
-            // Read the file line by line
-            string[] dataToSend = File.ReadAllLines(FilePath);
+            string[] dataLines = File.ReadAllLines(FilePath);
 
-            // Send the data to the server with a delay between each line
-            foreach (var line in dataToSend)
+            // Send each line of data
+            foreach (var line in dataLines)
             {
                 writer.WriteLine(line);
-                Console.WriteLine($"Sent data: {line}");
-                Thread.Sleep(DelayMilliseconds); // Add a delay (1 second) between each line
+                Console.WriteLine($"Sent: {line}");
+                Thread.Sleep(DelayMilliseconds);
             }
 
-            // Send EOF message to signal the end of data
+            // Signal EOF to server
             writer.WriteLine("EOF");
-            Console.WriteLine("Data sent successfully. Closing connection...");
+            Console.WriteLine("Completed sending data. Closing connection.");
 
-            // Close the connection
             client.Close();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"An error occurred: {ex.Message}");
+            Console.WriteLine($"Error: {ex.Message}");
         }
     }
 }
