@@ -3,7 +3,6 @@ using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 class Client
 {
@@ -25,7 +24,7 @@ class Client
 
             // Send airplane ID to server
             writer.WriteLine(AirplaneId);
-            Console.WriteLine($"Sent Airplane ID: {AirplaneId}");
+            Console.WriteLine($"Sent Airplane ID: {AirplaneId}\n");
 
             if (!File.Exists(FilePath))
             {
@@ -35,24 +34,33 @@ class Client
             }
 
             string[] dataLines = File.ReadAllLines(FilePath);
+            int totalLines = dataLines.Length;
 
             // Send each line of data
-            foreach (var line in dataLines)
+            for (int i = 0; i < totalLines; i++)
             {
-                writer.WriteLine(line);
-                Console.WriteLine($"Sent: {line}");
+                writer.WriteLine(dataLines[i]);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write($"\rProgress: {i + 1}/{totalLines} [{GenerateProgressBar(i + 1, totalLines, 30)}] {((i + 1) * 100 / totalLines)}% ");
+                Console.ForegroundColor = ConsoleColor.Yellow;
                 Thread.Sleep(DelayMilliseconds);
             }
 
             // Signal EOF to server
             writer.WriteLine("EOF");
-            Console.WriteLine("Completed sending data. Closing connection.");
+            Console.WriteLine("\nCompleted sending data. Closing connection.");
 
             client.Close();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"\nError: {ex.Message}");
         }
+    }
+
+    static string GenerateProgressBar(int current, int total, int barLength)
+    {
+        int filledLength = (int)((double)current / total * barLength);
+        return new string('█', filledLength) + new string('-', barLength - filledLength);
     }
 }
