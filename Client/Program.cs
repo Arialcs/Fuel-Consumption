@@ -3,17 +3,23 @@ using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 class Client
 {
     private const string ServerAddress = "127.0.0.1"; // Replace with actual server IP
+    //jai - 10.144.105.88
+    //girt - 10.144.104.146
+
     private const int ServerPort = 12345;
     private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
 
     // Hardcoded Airplane ID and Data File Path
     private static readonly string AirplaneId = "Plane" + new Random().Next(100, 999); // Generates Plane123-like ID
     private const string FilePath = @"C:\Users\Jai\Desktop\pro Part 2\Data Files\Telem_2023_3_12 14_56_40.txt"; // Path to the data file
-
+    //C:\Users\soory\Downloads\Data Files\Telem_2023_3_12 16_26_4.txt
+    //@"C:\Users\Jai\Desktop\pro Part 2\Data Files\Telem_2023_3_12 14_56_40.txt"
+   // C:\Users\giris\Downloads\Data Files\Telem_2023_3_12 16_26_4.txt
     static void Main()
     {
         try
