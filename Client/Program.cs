@@ -3,64 +3,64 @@ using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 class Client
 {
-    private const string ServerAddress = "127.0.0.1"; // Replace with actual server IP
-    //jai - 10.144.105.88
-    //girt - 10.144.104.146
-
+    private const string ServerAddress = "127.0.0.1"; // Update if needed
     private const int ServerPort = 12345;
     private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
 
-    // Hardcoded Airplane ID and Data File Path
-    private static readonly string AirplaneId = "Plane" + new Random().Next(100, 999); // Generates Plane123-like ID
-    private const string FilePath = @"C:\Users\Jai\Desktop\pro Part 2\Data Files\Telem_2023_3_12 14_56_40.txt"; // Path to the data file
-    //C:\Users\soory\Downloads\Data Files\Telem_2023_3_12 16_26_4.txt
-    //@"C:\Users\Jai\Desktop\pro Part 2\Data Files\Telem_2023_3_12 14_56_40.txt"
-   // C:\Users\giris\Downloads\Data Files\Telem_2023_3_12 16_26_4.txt
+    private static readonly string AirplaneId = "Plane" + new Random().Next(100, 999);
+
     static void Main()
     {
         try
         {
-            TcpClient client = new TcpClient(ServerAddress, ServerPort);
-            NetworkStream stream = client.GetStream();
-            StreamWriter writer = new StreamWriter(stream, Encoding.ASCII) { AutoFlush = true };
+            Console.Write("Enter the path to the data file: ");
+            string filePath = Console.ReadLine()?.Trim(); // Trim spaces and invisible characters
 
-            // Send airplane ID to server
-            writer.WriteLine(AirplaneId);
-            Console.WriteLine($"Sent Airplane ID: {AirplaneId}\n");
-
-            if (!File.Exists(FilePath))
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
             {
-                Console.WriteLine($"Data file not found: {FilePath}");
-                client.Close();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: File not found at {filePath}");
+                Console.ResetColor();
                 return;
             }
 
-            string[] dataLines = File.ReadAllLines(FilePath);
-            int totalLines = dataLines.Length;
-
-            // Send each line of data
-            for (int i = 0; i < totalLines; i++)
+            using (TcpClient client = new TcpClient(ServerAddress, ServerPort))
+            using (NetworkStream stream = client.GetStream())
+            using (StreamWriter writer = new StreamWriter(stream, Encoding.ASCII) { AutoFlush = true })
             {
-                writer.WriteLine(dataLines[i]);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write($"\rProgress: {i + 1}/{totalLines} [{GenerateProgressBar(i + 1, totalLines, 30)}] {((i + 1) * 100 / totalLines)}% ");
+                writer.WriteLine(AirplaneId);
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"\nSent Airplane ID: {AirplaneId}");
+                Console.ResetColor();
+
+                string[] dataLines = File.ReadAllLines(filePath);
+                int totalLines = dataLines.Length;
+
+                for (int i = 0; i < totalLines; i++)
+                {
+                    writer.WriteLine(dataLines[i]);
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write($"\rProgress: {i + 1}/{totalLines} [{GenerateProgressBar(i + 1, totalLines, 30)}] {((i + 1) * 100 / totalLines)}% ");
+                    Console.ResetColor();
+
+                    Thread.Sleep(DelayMilliseconds);
+                }
+
+                writer.WriteLine("EOF");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Thread.Sleep(DelayMilliseconds);
+                Console.WriteLine("\n\nCompleted sending data. Closing connection.");
+                Console.ResetColor();
             }
-
-            // Signal EOF to server
-            writer.WriteLine("EOF");
-            Console.WriteLine("\nCompleted sending data. Closing connection.");
-
-            client.Close();
         }
         catch (Exception ex)
         {
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"\nError: {ex.Message}");
+            Console.ResetColor();
         }
     }
 
