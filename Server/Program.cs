@@ -65,29 +65,31 @@ class Server
             // Process telemetry line
             string[] parts = line.Split(',');
 
-            if (parts.Length >= 2)
+            if (parts.Length >= 2) // Safe check for at least timestamp and fuel value
             {
-                string timestamp = parts[0].Trim(); // First element
-                string fuelRemainingStr = parts[1].Trim(); // Second element
+                string timestamp = parts[0].Trim(); // First element: timestamp
+                string fuelRemainingStr = parts[1].Trim(); // Second element: fuel remaining
 
-                if (DateTime.TryParseExact(timestamp, "d_M_yyyy HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime time) &&
-                    double.TryParse(fuelRemainingStr, out double fuelRemaining))
+                // Use flexible DateTime.TryParse instead of TryParseExact to handle single-digit seconds/minutes
+                if (DateTime.TryParse(timestamp, out DateTime time) && double.TryParse(fuelRemainingStr, out double fuelRemaining))
                 {
                     if (previousFuel.HasValue && previousTime.HasValue)
                     {
                         double fuelUsed = previousFuel.Value - fuelRemaining;
                         double timeElapsed = (time - previousTime.Value).TotalMinutes;
 
-                        if (fuelUsed >= 0 && timeElapsed > 0)
+                        if (fuelUsed >= 0 && timeElapsed > 0) // Only add valid, positive consumption and time
                         {
                             totalFuelUsed += fuelUsed;
                             totalTime += timeElapsed;
                         }
                     }
 
+                    // Update previous values for next iteration
                     previousFuel = fuelRemaining;
                     previousTime = time;
 
+                    // Output to console
                     Console.WriteLine($"[{clientId}] Time: {timestamp}, Fuel: {fuelRemaining}");
                 }
                 else
@@ -99,6 +101,7 @@ class Server
             {
                 Console.WriteLine($"Malformed line from {clientId}: {line}");
             }
+
 
         }
 

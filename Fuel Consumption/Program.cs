@@ -11,7 +11,7 @@ class Client
     private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
 
     // Hardcoded Airplane ID and Data File Path
-    private const string AirplaneId = "Plane123"; // You can change this ID as needed
+    private static readonly string AirplaneId = "Plane" + new Random().Next(100, 999); // Generates Plane123-like ID
     private const string FilePath = @"C:\Users\giris\Downloads\Data Files\Telem_2023_3_12 14_56_40.txt"; // Path to the data file
 
     static void Main()
