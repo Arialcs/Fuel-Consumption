@@ -6,7 +6,7 @@ using System.Threading;
 
 class Client
 {
-    private const string ServerAddress = "127.0.0.1";
+    private const string ServerAddress = "10.144.104.146";
     private const int ServerPort = 12345;
     private const int DelayMilliseconds = 1000; // Delay in milliseconds (1 second)
     private const string FilePath = @"C:\Users\Jai\Desktop\pro Part 2\Data Files\Telem_2023_3_12 14_56_40.txt"; // Path to the data file
