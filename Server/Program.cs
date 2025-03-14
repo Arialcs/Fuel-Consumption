@@ -67,14 +67,16 @@ class Server
 
             if (parts.Length >= 2)
             {
-                string timestamp = parts[0].Trim(); // First element
-                string fuelRemainingStr = parts[1].Trim(); // Second element
+                string rawTimestamp = parts[0].Trim();
+                string fuelRemainingStr = parts[1].Trim();
 
-                // Proper exact parsing for "12_3_2023 14:56:48"
-                if (DateTime.TryParseExact(timestamp, "d_M_yyyy HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime time) &&
-                    double.TryParse(fuelRemainingStr, out double fuelRemaining))
+                // ✅ Step 1: Normalize timestamp (replace underscores with slashes)
+                string timestamp = rawTimestamp.Replace('_', '/');  // Example: "12_3_2023 14:57:4" -> "12/3/2023 14:57:4"
+
+                // ✅ Step 2: Flexible parsing
+                if (DateTime.TryParse(timestamp, out DateTime time) && double.TryParse(fuelRemainingStr, out double fuelRemaining))
                 {
-                    // Calculation logic remains unchanged
+                    // Your calculation logic
                     if (previousFuel.HasValue && previousTime.HasValue)
                     {
                         double fuelUsed = previousFuel.Value - fuelRemaining;
@@ -101,6 +103,7 @@ class Server
             {
                 Console.WriteLine($"Malformed line from {clientId}: {line}");
             }
+
 
 
 
