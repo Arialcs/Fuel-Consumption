@@ -51,8 +51,11 @@ class Server
             {
                 if (line == "EOF")
                 {
-                    CalculateAndSaveAverage(clientId, data);
-                    break;
+                    // Handle EOF message
+                    Console.WriteLine($"[EOF] Received for client {clientId}. Calculating average.");
+                    LogToFile($"[EOF] Received for client {clientId}. Calculating average.");
+                    CalculateAndSaveAverage(clientId, data); // Trigger calculation
+                    break; // End processing for this client
                 }
 
                 // Skip header
@@ -62,20 +65,24 @@ class Server
                     continue;
                 }
 
-                // ✅ Process telemetry & print raw data
+                // Process telemetry & print raw data
                 ProcessTelemetry(clientId, line, data);
             }
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            Console.WriteLine($"Connection lost with {clientId}");
-            LogToFile($"Connection lost with {clientId}");
+            // If the client disconnects unexpectedly during data transmission, handle it gracefully
+            Console.WriteLine($"Connection lost with {clientId}: {ex.Message}");
+            LogToFile($"Connection lost with {clientId}: {ex.Message}");
         }
         finally
         {
-            if (clientId != null)
+            // Ensure the calculation is always triggered, even if the client disconnects mid-transmission
+            if (clientId != null && clientData.ContainsKey(clientId))
             {
-                CalculateAndSaveAverage(clientId, clientData[clientId]); // ✅ Always save result even if client disconnects
+                Console.WriteLine($"[Disconnection] Calculating average for client {clientId}.");
+                LogToFile($"[Disconnection] Calculating average for client {clientId}.");
+                CalculateAndSaveAverage(clientId, clientData[clientId]); // Always calculate the average
             }
 
             client.Close();
@@ -83,6 +90,7 @@ class Server
             LogToFile($"Connection closed for {clientId}");
         }
     }
+
 
     static void ProcessTelemetry(string clientId, string line, ClientData data)
     {
