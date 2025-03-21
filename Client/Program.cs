@@ -6,11 +6,12 @@ using System.Threading;
 
 class Client
 {
-    private const string ServerAddress = "127.0.0.1"; // Update if needed
+    private const string ServerAddress = "10.0.0.83"; // Update if needed
     private const int ServerPort = 12345;
     private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
 
     private static readonly string AirplaneId = "Plane" + new Random().Next(100, 999);
+    private const string FilePath = @"C:\Users\giris\OneDrive - Conestoga College\BCS Sem 6\Project VI Software Efficiency and Performance\Fuel Consumption\Data Files\Telem_2023_3_12 16_26_4.txt";
 
     static void Main()
     {
