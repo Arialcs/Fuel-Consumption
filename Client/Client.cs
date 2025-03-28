@@ -7,7 +7,7 @@ using System.Threading;
 
 class Client
 {
-    private const string ServerAddress = "10.144.113.132"; // Update if needed
+    private const string ServerAddress = "10.144.113.132"; // Update with actual server address
     private const int ServerPort = 12345;
     private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
 
@@ -64,6 +64,7 @@ class Client
             using (NetworkStream stream = client.GetStream())
             using (StreamWriter writer = new StreamWriter(stream, Encoding.ASCII) { AutoFlush = true })
             {
+                // Send Airplane ID first
                 writer.WriteLine(AirplaneId);
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine($"\nSent Airplane ID: {AirplaneId}");
@@ -74,13 +75,29 @@ class Client
 
                 for (int i = 0; i < totalLines; i++)
                 {
-                    writer.WriteLine(dataLines[i]);
+                    string line = dataLines[i];
 
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write($"\rProgress: {i + 1}/{totalLines} [{GenerateProgressBar(i + 1, totalLines, 30)}] {((i + 1) * 100 / totalLines)}% ");
-                    Console.ResetColor();
+                    // Create a structured data packet
+                    string[] parts = line.Split(',');
+                    if (parts.Length >= 2)
+                    {
+                        string time = parts[0].Trim();
+                        string fuelRemaining = parts[1].Trim();
 
-                    Thread.Sleep(DelayMilliseconds);
+                        // Packet format: [Airplane ID][Time][Fuel Remaining][Checksum]
+                        string packet = CreateDataPacket(AirplaneId, time, fuelRemaining);
+
+                        // Send the packet
+                        writer.WriteLine(packet);
+
+                        // Display progress
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write($"\rProgress: {i + 1}/{totalLines} [{GenerateProgressBar(i + 1, totalLines, 30)}] {((i + 1) * 100 / totalLines)}% ");
+                        Console.ResetColor();
+
+                        // Wait a moment before sending the next packet
+                        Thread.Sleep(DelayMilliseconds);
+                    }
                 }
 
                 // Send EOF to indicate the client is done sending data and is disconnecting
@@ -97,6 +114,30 @@ class Client
             Console.WriteLine($"\nError: {ex.Message}");
             Console.ResetColor();
         }
+    }
+
+    // Method to generate the data packet
+    static string CreateDataPacket(string airplaneId, string time, string fuelRemaining)
+    {
+        // Create a simple packet structure
+        string packet = $"{airplaneId},{time},{fuelRemaining}";
+
+        // Optionally, add a checksum or additional validation here if needed
+        string checksum = CalculateChecksum(packet);
+        packet += $",{checksum}";
+
+        return packet;
+    }
+
+    // Method to calculate a simple checksum (e.g., sum of ASCII values of the characters)
+    static string CalculateChecksum(string packet)
+    {
+        int sum = 0;
+        foreach (char c in packet)
+        {
+            sum += c;
+        }
+        return sum.ToString();
     }
 
     // Method to generate a progress bar
