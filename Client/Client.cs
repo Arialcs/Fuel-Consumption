@@ -7,7 +7,7 @@ using System.Threading;
 
 class Client
 {
-    private const string ServerAddress = "10.144.113.51"; // Update if needed
+    private const string ServerAddress = "10.144.113.132"; // Update if needed
     private const int ServerPort = 12345;
     private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
 
