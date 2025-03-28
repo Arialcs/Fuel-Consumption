@@ -8,105 +8,117 @@ using System.Collections.Concurrent;
 
 class Server
 {
-    private const int Port = 12345;
-    private static readonly object FileLock = new object();
-    private static ConcurrentDictionary<string, ClientData> clientData = new ConcurrentDictionary<string, ClientData>();
+    private const int Port = 12345; // Port number for the server to listen on
+    private static readonly object FileLock = new object(); // Lock object to prevent file access conflicts between threads
+    private static ConcurrentDictionary<string, ClientData> clientData = new ConcurrentDictionary<string, ClientData>(); // Holds client data, ensuring thread-safety
+    private static readonly int ClientTimeoutInSeconds = 3; // Timeout threshold for client disconnection, in seconds
 
+    // Main method to start the server
     static void Main()
     {
-        TcpListener server = new TcpListener(IPAddress.Any, Port);
-        server.Start();
-        Console.WriteLine($"Server running on port {Port}");
-        LogToFile("Server started and listening on port " + Port);
+        TcpListener server = new TcpListener(IPAddress.Any, Port); // Listen for connections on all available IP addresses and the specified port
+        server.Start(); // Start the server
+        Console.WriteLine($"Server running on port {Port}"); // Log the server's status
+        LogToFile("Server started and listening on port " + Port); // Log server start to file
 
+        // Main loop to accept incoming client connections
         while (true)
         {
-            TcpClient client = server.AcceptTcpClient();
-            Thread clientThread = new Thread(() => HandleClient(client));
-            clientThread.IsBackground = true;
-            clientThread.Start();
+            TcpClient client = server.AcceptTcpClient(); // Accept a new client connection
+            Thread clientThread = new Thread(() => HandleClient(client)); // Create a new thread to handle the client
+            clientThread.IsBackground = true; // Set the thread to background so it doesn't block the main thread
+            clientThread.Start(); // Start the client handling thread
         }
     }
 
+    // Method to handle communication with a client
     static void HandleClient(TcpClient client)
     {
-        NetworkStream stream = client.GetStream();
-        StreamReader reader = new StreamReader(stream, Encoding.ASCII);
-        string clientId = null;
+        NetworkStream stream = client.GetStream(); // Get the network stream to read and write data
+        StreamReader reader = new StreamReader(stream, Encoding.ASCII); // Set up the reader for incoming data
+        string clientId = null; // Variable to store the client ID
 
         try
         {
-            clientId = reader.ReadLine(); // Read client ID
+            clientId = reader.ReadLine(); // Read the client ID from the first line of data
             if (clientId != null)
             {
-                Console.WriteLine($"Client connected: {clientId}");
-                LogToFile($"Client connected: {clientId}");
+                Console.WriteLine($"Client connected: {clientId}"); // Log client connection
+                LogToFile($"Client connected: {clientId}"); // Log client connection to file
             }
 
+            // Initialize or retrieve client data from the dictionary
             var data = clientData.GetOrAdd(clientId, new ClientData());
-            bool headerSkipped = false;
+            bool headerSkipped = false; // Flag to indicate if header has been skipped
             string line;
 
+            DateTime lastReadTime = DateTime.Now; // Track the time of the last read to detect client timeouts
+
+            // Process the client's incoming data line by line
             while ((line = reader.ReadLine()) != null)
             {
-                if (line == "EOF")
+                // Check if client has been inactive for too long (timeout check)
+                if ((DateTime.Now - lastReadTime).TotalSeconds > ClientTimeoutInSeconds)
                 {
-                    // Handle EOF message
-                    Console.WriteLine($"[EOF] Received for client {clientId}. Calculating average.");
-                    LogToFile($"[EOF] Received for client {clientId}. Calculating average.");
-                    CalculateAndSaveAverage(clientId, data); // Trigger calculation
-                    break; // End processing for this client
+                    Console.WriteLine($"[Timeout] No data received from {clientId} for more than {ClientTimeoutInSeconds} seconds. Disconnecting...");
+                    LogToFile($"[Timeout] No data received from {clientId} for more than {ClientTimeoutInSeconds} seconds. Disconnecting...");
+                    break; // Break the loop if timeout occurs
                 }
 
-                // Skip header
+                lastReadTime = DateTime.Now; // Update last read time when data is received
+
+                if (line == "EOF") // Check for EOF signal
+                {
+                    // Handle EOF message (end of transmission)
+                    Console.WriteLine($"[EOF] Received for client {clientId}. Calculating average.");
+                    LogToFile($"[EOF] Received for client {clientId}. Calculating average.");
+                    CalculateAndSaveAverage(clientId, data); // Trigger calculation of fuel consumption average
+                    break; // Exit the loop after EOF
+                }
+
+                // Skip the header if it's the first line containing fuel total information
                 if (!headerSkipped && line.StartsWith("FUEL TOTAL QUANTITY"))
                 {
                     headerSkipped = true;
-                    continue;
+                    continue; // Skip this line and move to the next
                 }
 
-                // Process telemetry & print raw data
+                // Process the telemetry data and print raw data
                 ProcessTelemetry(clientId, line, data);
             }
         }
         catch (IOException ex)
         {
-            // If the client disconnects unexpectedly during data transmission, handle it gracefully
+            // Handle client disconnection or read errors
             Console.WriteLine($"Connection lost with {clientId}: {ex.Message}");
             LogToFile($"Connection lost with {clientId}: {ex.Message}");
         }
         finally
         {
-            // Ensure the calculation is always triggered, even if the client disconnects mid-transmission
+            // Always attempt to calculate the average even if client disconnects unexpectedly
             if (clientId != null && clientData.ContainsKey(clientId))
             {
                 Console.WriteLine($"[Disconnection] Calculating average for client {clientId}.");
                 LogToFile($"[Disconnection] Calculating average for client {clientId}.");
-                CalculateAndSaveAverage(clientId, clientData[clientId]); // Always calculate the average
+                CalculateAndSaveAverage(clientId, clientData[clientId]); // Calculate average consumption
             }
 
-            client.Close();
-            Console.WriteLine($"Connection closed for {clientId}");
-            LogToFile($"Connection closed for {clientId}");
+            client.Close(); // Close the client connection
+            Console.WriteLine($"Connection closed for {clientId}"); // Log client disconnection
+            LogToFile($"Connection closed for {clientId}"); // Log to file
         }
     }
 
-
+    // Method to process each line of telemetry data
     static void ProcessTelemetry(string clientId, string line, ClientData data)
     {
-        // Skip lines that contain "FUEL TOTAL QUANTITY" (Header or irrelevant info)
-        if (line.Contains("FUEL TOTAL QUANTITY"))
+        // Skip irrelevant lines that contain fuel total quantity or empty/malformed lines
+        if (line.Contains("FUEL TOTAL QUANTITY") || string.IsNullOrWhiteSpace(line))
         {
             return;
         }
 
-        // Skip empty or malformed lines
-        if (string.IsNullOrWhiteSpace(line))
-        {
-            return;
-        }
-
-        string[] parts = line.Split(',');
+        string[] parts = line.Split(','); // Split the line by commas to extract timestamp and fuel remaining
 
         if (parts.Length < 2)
         {
@@ -115,74 +127,92 @@ class Server
             return;
         }
 
-        // The first part is the timestamp, and the second part is the fuel remaining
-        string rawTimestamp = parts[1].Trim(); // Adjusted to get the second part (timestamp)
-        string fuelRemainingStr = parts[2].Trim(); // Adjusted to get the third part (fuel remaining)
+        // Extract timestamp and fuel remaining values
+        string rawTimestamp = parts[1].Trim(); // Timestamp (second part of the line)
+        string fuelRemainingStr = parts[2].Trim(); // Fuel remaining value (third part of the line)
 
-        // Normalize timestamp (Replace underscores with slashes for better parsing)
+        // Normalize timestamp for better parsing
         string timestamp = rawTimestamp.Replace('_', '/');
 
-        // Try parsing timestamp & fuel
+        // Try to parse timestamp and fuel remaining values
         if (DateTime.TryParse(timestamp, out DateTime time) && double.TryParse(fuelRemainingStr, out double fuelRemaining))
         {
-            // Print Raw Data
+            // Log and print raw telemetry data
             Console.WriteLine($"[{clientId}] Time: {timestamp}, Fuel: {fuelRemaining}");
             LogToFile($"[{clientId}] Time: {timestamp}, Fuel: {fuelRemaining}");
 
-            // Fuel consumption calculation fix (Prevent division by zero)
+            // Calculate fuel consumption if previous data is available
             if (data.PreviousFuel.HasValue && data.PreviousTime.HasValue)
             {
-                double fuelUsed = data.PreviousFuel.Value - fuelRemaining;
-                double timeElapsed = (time - data.PreviousTime.Value).TotalMinutes;
+                double fuelUsed = data.PreviousFuel.Value - fuelRemaining; // Calculate fuel used
+                double timeElapsed = (time - data.PreviousTime.Value).TotalMinutes; // Calculate time elapsed
 
-                if (fuelUsed >= 0 && timeElapsed > 0) // Ensuring valid calculations
+                if (fuelUsed >= 0 && timeElapsed > 0) // Ensure valid data
                 {
-                    data.TotalFuelUsed += fuelUsed;
-                    data.TotalTime += timeElapsed;
+                    data.TotalFuelUsed += fuelUsed; // Accumulate total fuel used
+                    data.TotalTime += timeElapsed; // Accumulate total time
                 }
             }
 
+            // Update previous fuel and timestamp for future calculations
             data.PreviousFuel = fuelRemaining;
             data.PreviousTime = time;
         }
         else
         {
+            // Handle invalid data format
             Console.WriteLine($"Invalid data format from {clientId}: {line}");
             LogToFile($"Invalid data format from {clientId}: {line}");
         }
     }
 
-
+    // Method to calculate the average fuel consumption for a client and store the result
     static void CalculateAndSaveAverage(string clientId, ClientData data)
     {
-        double avgConsumption = data.TotalTime > 0 ? data.TotalFuelUsed / data.TotalTime : 0;
-        Console.WriteLine($"[{clientId}] Average Fuel Consumption: {avgConsumption:F4} gallons/min");
-        LogToFile($"[{clientId}] Average Fuel Consumption: {avgConsumption:F4} gallons/min");
+        double avgConsumption = data.TotalTime > 0 ? data.TotalFuelUsed / data.TotalTime : 0; // Calculate average consumption
+        Console.WriteLine($"[{clientId}] Average Fuel Consumption: {avgConsumption:F4} gallons/min"); // Display the result
+        LogToFile($"[{clientId}] Average Fuel Consumption: {avgConsumption:F4} gallons/min"); // Log the result to file
 
-        // ✅ Store results in CSV instead of plain text
+        // Store the result in CSV file, ensuring thread-safe access
         lock (FileLock)
         {
-            File.AppendAllText("Results.csv", $"{clientId},{avgConsumption:F4}{Environment.NewLine}");
+            try
+            {
+                File.AppendAllText("Results.csv", $"{clientId},{avgConsumption:F4}{Environment.NewLine}");
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"Error writing to file: {ex.Message}"); // Handle file write errors
+                LogToFile($"Error writing to file: {ex.Message}");
+            }
         }
 
+        // Remove client data from the dictionary after processing
         clientData.TryRemove(clientId, out _);
     }
 
-    // ✅ Logging system to track errors, connections, and processing info
+    // Method to log messages to a log file
     static void LogToFile(string message)
     {
-        lock (FileLock)
+        lock (FileLock) // Ensure only one thread accesses the file at a time
         {
-            File.AppendAllText("server_log.txt", $"{DateTime.Now}: {message}{Environment.NewLine}");
+            try
+            {
+                File.AppendAllText("server_log.txt", $"{DateTime.Now}: {message}{Environment.NewLine}"); // Write the message to the log file
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"Error logging to file: {ex.Message}"); // Handle file write errors
+            }
         }
     }
 }
 
-// ✅ Data class to store fuel usage info per client
+// ClientData class to store the telemetry data and calculations for each client
 public class ClientData
 {
-    public double TotalFuelUsed { get; set; }
-    public double TotalTime { get; set; }
-    public double? PreviousFuel { get; set; }
-    public DateTime? PreviousTime { get; set; }
+    public double TotalFuelUsed { get; set; } // Total fuel used by the client
+    public double TotalTime { get; set; } // Total time the client has been transmitting data
+    public double? PreviousFuel { get; set; } // Previous fuel reading (for fuel consumption calculation)
+    public DateTime? PreviousTime { get; set; } // Previous timestamp (for time difference calculation)
 }

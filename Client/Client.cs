@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -107,6 +106,12 @@ class Client
                 Console.WriteLine("\n\nCompleted sending data. Closing connection.");
                 Console.ResetColor();
             }
+        }
+        catch (IOException ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\nError: Network-related issue - {ex.Message}");
+            Console.ResetColor();
         }
         catch (Exception ex)
         {
