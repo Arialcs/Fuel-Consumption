@@ -6,7 +6,7 @@ using System.Threading;
 
 class Client
 {
-    private const string ServerAddress = "10.144.113.132"; // Update with actual server address
+    private const string ServerAddress = "localhost"; // Update with actual server address
     private const int ServerPort = 12345;
     private const int DelayMilliseconds = 1000; // 1 second delay between sending lines
 
@@ -38,26 +38,15 @@ class Client
                 return;
             }
 
-            // List the files to choose from
-            Console.WriteLine("Available files:");
-            for (int i = 0; i < files.Length; i++)
-            {
-                Console.WriteLine($"{i + 1}. {Path.GetFileName(files[i])}");
-            }
+            // Select a random file from the list
+            Random rand = new Random();
+            int fileChoice = rand.Next(0, files.Length); // Randomly select a file
+            string filePath = files[fileChoice];
 
-            // Ask the user to select a file
-            Console.Write("Enter the number of the file you want to send: ");
-            int fileChoice;
-            if (!int.TryParse(Console.ReadLine(), out fileChoice) || fileChoice < 1 || fileChoice > files.Length)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error: Invalid file choice.");
-                Console.ResetColor();
-                return;
-            }
-
-            // Get the selected file path
-            string filePath = files[fileChoice - 1];
+            // Display the selected file
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"\nAutomatically selected file: {Path.GetFileName(filePath)}");
+            Console.ResetColor();
 
             using (TcpClient client = new TcpClient(ServerAddress, ServerPort))
             using (NetworkStream stream = client.GetStream())

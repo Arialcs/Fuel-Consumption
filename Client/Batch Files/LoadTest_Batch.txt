@@ -4,9 +4,9 @@ SET /A "count = 25"
 
 :while
 if %index% leq %count% (
-     START /MIN Client.exe
-     SET /A index = %index% + 1
-     @echo %index%
-     goto :while
+    SET /A "randomOption = (%RANDOM% %% 5) + 1"
+    START /MIN Client.exe %randomOption%
+    SET /A index = %index% + 1
+    @echo Started Client.exe with option %randomOption%
+    goto :while
 )
-

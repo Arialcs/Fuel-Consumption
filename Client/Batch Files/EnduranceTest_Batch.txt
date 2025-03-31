@@ -1,6 +1,6 @@
 @echo off
 SET /A "index = 1"
-SET /A "count = 100"
+SET /A "count = 25"
 
 :while
 @echo %time%

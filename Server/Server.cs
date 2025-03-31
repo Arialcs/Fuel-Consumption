@@ -16,6 +16,7 @@ class Server
     // Main method to start the server
     static void Main()
     {
+
         TcpListener server = new TcpListener(IPAddress.Any, Port); // Listen for connections on all available IP addresses and the specified port
         server.Start(); // Start the server
         Console.WriteLine($"Server running on port {Port}"); // Log the server's status
