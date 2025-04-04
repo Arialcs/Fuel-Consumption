@@ -35,79 +35,67 @@ class Server
     // Method to handle communication with a client
     static void HandleClient(TcpClient client)
     {
-        NetworkStream stream = client.GetStream(); // Get the network stream to read and write data
-        StreamReader reader = new StreamReader(stream, Encoding.ASCII); // Set up the reader for incoming data
-        string clientId = null; // Variable to store the client ID
+        NetworkStream stream = client.GetStream();
+        stream.ReadTimeout = ClientTimeoutInSeconds * 1000; // Set timeout for read operations
+
+        StreamReader reader = new StreamReader(stream, Encoding.ASCII);
+        string clientId = null;
 
         try
         {
-            clientId = reader.ReadLine(); // Read the client ID from the first line of data
+            clientId = reader.ReadLine();
             if (clientId != null)
             {
-                Console.WriteLine($"Client connected: {clientId}"); // Log client connection
-                LogToFile($"Client connected: {clientId}"); // Log client connection to file
+                Console.WriteLine($"Client connected: {clientId}");
+                LogToFile($"Client connected: {clientId}");
             }
 
-            // Initialize or retrieve client data from the dictionary
             var data = clientData.GetOrAdd(clientId, new ClientData());
-            bool headerSkipped = false; // Flag to indicate if header has been skipped
+            bool headerSkipped = false;
             string line;
 
-            DateTime lastReadTime = DateTime.Now; // Track the time of the last read to detect client timeouts
+            DateTime lastReadTime = DateTime.Now;
 
-            // Process the client's incoming data line by line
             while ((line = reader.ReadLine()) != null)
             {
-                // Check if client has been inactive for too long (timeout check)
-                if ((DateTime.Now - lastReadTime).TotalSeconds > ClientTimeoutInSeconds)
-                {
-                    Console.WriteLine($"[Timeout] No data received from {clientId} for more than {ClientTimeoutInSeconds} seconds. Disconnecting...");
-                    LogToFile($"[Timeout] No data received from {clientId} for more than {ClientTimeoutInSeconds} seconds. Disconnecting...");
-                    break; // Break the loop if timeout occurs
-                }
+                lastReadTime = DateTime.Now;
 
-                lastReadTime = DateTime.Now; // Update last read time when data is received
-
-                if (line == "EOF") // Check for EOF signal
+                if (line == "EOF")
                 {
-                    // Handle EOF message (end of transmission)
                     Console.WriteLine($"[EOF] Received for client {clientId}. Calculating average.");
                     LogToFile($"[EOF] Received for client {clientId}. Calculating average.");
-                    CalculateAndSaveAverage(clientId, data); // Trigger calculation of fuel consumption average
-                    break; // Exit the loop after EOF
+                    CalculateAndSaveAverage(clientId, data);
+                    break;
                 }
 
-                // Skip the header if it's the first line containing fuel total information
                 if (!headerSkipped && line.StartsWith("FUEL TOTAL QUANTITY"))
                 {
                     headerSkipped = true;
-                    continue; // Skip this line and move to the next
+                    continue;
                 }
 
-                // Process the telemetry data and print raw data
                 ProcessTelemetry(clientId, line, data);
             }
         }
         catch (IOException ex)
         {
-            // Handle client disconnection or read errors
             Console.WriteLine($"Connection lost with {clientId}: {ex.Message}");
             LogToFile($"Connection lost with {clientId}: {ex.Message}");
         }
         finally
         {
-            // Always attempt to calculate the average even if client disconnects unexpectedly
             if (clientId != null && clientData.ContainsKey(clientId))
             {
                 Console.WriteLine($"[Disconnection] Calculating average for client {clientId}.");
                 LogToFile($"[Disconnection] Calculating average for client {clientId}.");
-                CalculateAndSaveAverage(clientId, clientData[clientId]); // Calculate average consumption
+                CalculateAndSaveAverage(clientId, clientData[clientId]);
             }
 
-            client.Close(); // Close the client connection
-            Console.WriteLine($"Connection closed for {clientId}"); // Log client disconnection
-            LogToFile($"Connection closed for {clientId}"); // Log to file
+            client.Close();
+            Console.WriteLine($"Connection closed for {clientId}");
+            LogToFile($"Connection closed for {clientId}");
         }
+
     }
 
     // Method to process each line of telemetry data
